@@ -41,6 +41,7 @@ def build_payload(message: str, source: str, filters: dict) -> dict:
                 "message": message,
                 "ds": now_iso_utc(),
                 "unique_id": make_reference_id(message),
+                "ticket_id": make_reference_id(message),
                 "source": source,
                 "filters": filters,
             }

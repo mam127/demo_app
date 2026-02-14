@@ -14,10 +14,93 @@ PROJECT_ID = "hrdf-care"          # ✅ set your project_id here
 TAXONOMY_ID = "default"
 SKIP_STEPS = {}
 
+SCORE_SCALE = 5  # ✅ fixed value
+
 API_URL = "https://public-api.anecdoteai.com/inject"
 API_HEADERS = {
     "Authorization": "Bearer nKGPGqhQOpoSoQR8hYiyQM7ojJSp4WTgmlM2YfNJdWksuX6w8YYiqMAQbmBbEzSa"
 }
+
+HRDF_GREEN = "#1B8354"
+
+
+# =========================
+# Styling (HRDF look)
+# =========================
+def inject_hrdf_style():
+    st.markdown(
+        f"""
+        <style>
+          :root {{
+            --hrdf-green: {HRDF_GREEN};
+            --hrdf-green-dark: #146A43;
+            --hrdf-bg: #F3FBF6;
+            --hrdf-border: rgba(27, 131, 84, 0.22);
+          }}
+
+          /* Page spacing */
+          .block-container {{
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+            max-width: 860px;
+          }}
+
+          /* Header card */
+          .hrdf-hero {{
+            background: var(--hrdf-bg);
+            border: 1px solid var(--hrdf-border);
+            border-left: 8px solid var(--hrdf-green);
+            border-radius: 18px;
+            padding: 16px 18px;
+            margin-bottom: 12px;
+          }}
+          .hrdf-title {{
+            font-size: 26px;
+            font-weight: 800;
+            margin: 0;
+            color: #0F2E20;
+          }}
+          .hrdf-subtitle {{
+            margin-top: 4px;
+            font-size: 13px;
+            color: rgba(15, 46, 32, 0.72);
+          }}
+
+          /* Primary button */
+          div[data-testid="stButton"] > button {{
+            background: var(--hrdf-green);
+            border: 1px solid var(--hrdf-green);
+            color: white;
+            border-radius: 12px;
+            padding: 0.6rem 1rem;
+            font-weight: 700;
+          }}
+          div[data-testid="stButton"] > button:hover {{
+            background: var(--hrdf-green-dark);
+            border-color: var(--hrdf-green-dark);
+          }}
+
+          /* Form container */
+          div[data-testid="stForm"] {{
+            border: 1px solid var(--hrdf-border);
+            border-radius: 18px;
+            padding: 14px 16px;
+            background: white;
+          }}
+
+          /* Links / accents */
+          a {{
+            color: var(--hrdf-green) !important;
+          }}
+
+          /* Try to tint slider track/handle (best effort; Streamlit DOM may vary) */
+          div[data-baseweb="slider"] div[role="slider"] {{
+            background-color: var(--hrdf-green) !important;
+          }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 # =========================
@@ -31,7 +114,7 @@ def now_iso_utc() -> str:
     # Required format: yyyy-MM-ddTHH:mm:ssZ
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-def build_payload(message: str, source: str, filters: dict) -> dict:
+def build_payload(message: str, source: str, filters: dict, score: int) -> dict:
     return {
         "project_id": PROJECT_ID,
         "taxonomy_id": TAXONOMY_ID,
@@ -44,6 +127,10 @@ def build_payload(message: str, source: str, filters: dict) -> dict:
                 "ticket_id": make_reference_id(message),
                 "source": source,
                 "filters": filters,
+
+                # ✅ NEW fields
+                "score": int(score),
+                "score_scale": SCORE_SCALE,
             }
         ],
     }
@@ -70,14 +157,34 @@ def send_to_api(payload: dict):
 # =========================
 # UI
 # =========================
-st.set_page_config(page_title="Feedback Submission", layout="centered")
-st.title("Feedback Submission")
+st.set_page_config(page_title="HRDF Feedback Submission", layout="centered")
+inject_hrdf_style()
 
-# (Optional) show which project this is going to, without allowing edits
-st.caption(f"Submissions will be sent to: {PROJECT_ID}")
+st.markdown(
+    """
+    <div class="hrdf-hero">
+      <div class="hrdf-title">HRDF Feedback Submission</div>
+      <div class="hrdf-subtitle">Submit a message with a required 1–5 score (scale is fixed to 5).</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.caption(f"Submissions will be sent to: **{PROJECT_ID}**")
 
 with st.form("submission_form"):
     st.subheader("Required details")
+
+    # ✅ NEW required score field
+    score = st.slider(
+        "Score *",
+        min_value=1,
+        max_value=5,
+        value=3,
+        step=1,
+        help="Choose a score from 1 (lowest) to 5 (highest).",
+    )
+
     message = st.text_area("Message *", placeholder="Type the message here...")
 
     # Optional fields hidden by default
@@ -121,6 +228,7 @@ if submitted:
         message=message.strip(),
         source=source_value,
         filters=filters_dict if isinstance(filters_dict, dict) else {},
+        score=score,  # ✅ pass score
     )
 
     st.success("Submission created.")
